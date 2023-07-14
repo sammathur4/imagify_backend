@@ -143,5 +143,15 @@ def save_feedback():
     return {"message": "Feedback saved successfully."}
 
 
+@app.route("/payments", methods=["POST"])
+def record_payment():
+    body = request.get_json()
+    with open("payments.json", "a") as file:
+        file.write(json.dumps(body))
+        file.write("\n")
+
+    return {"message": "Payment recorded successfully."}
+
+
 if __name__ == "__main__":
     app.run()
