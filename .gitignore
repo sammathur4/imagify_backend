@@ -1,0 +1,5 @@
+.venv/
+user_images/
+
+feedback.json
+payments.json
