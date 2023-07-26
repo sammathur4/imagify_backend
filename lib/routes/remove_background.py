@@ -77,9 +77,13 @@ def post_remove_background_lowres(image: list[UploadFile]):
     for i, file in enumerate(image):
         img = Image.open(file.file)
         session = new_session("isnet-general-use")
-        output = remove(
-            np.array(img.resize((512, 512)).convert("RGB")), session=session
-        )
+
+        max_dimm = max(img.size)
+        if max_dimm > 512:
+            scale = 512 / max_dimm
+            img = img.resize((round(img.size[0] * scale), round(img.size[1] * scale)))
+
+        output = remove(np.array(img.convert("RGB")), session=session)
 
         # Save original image locally
         original_img_path = f"user_images/original_images/original_image_{i}.jpg"

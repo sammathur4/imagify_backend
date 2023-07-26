@@ -1,8 +1,7 @@
 import io
 from typing import Annotated
+from PIL import Image
 
-import cv2
-import numpy as np
 from fastapi import Form, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
@@ -19,44 +18,48 @@ async def add_background(
     offset_x: Annotated[int, Form()],
     offset_y: Annotated[int, Form()],
 ):
-    # Read the foreground and background images
-    foreground = cv2.imdecode(
-        np.frombuffer(await foreground_image.read(), np.uint8), cv2.IMREAD_COLOR
-    )
-    background = cv2.imdecode(
-        np.frombuffer(await background_image.read(), np.uint8), cv2.IMREAD_COLOR
-    )
+    foreground = Image.open(foreground_image.file)
+    background = Image.open(background_image.file)
 
-    # Resize the foreground image to match the background image dimensions
-    scaled_h = round(foreground.shape[1] * scale_fg)
-    scaled_w = round(foreground.shape[0] * scale_fg)
-    foreground = cv2.resize(foreground, (scaled_h, scaled_w))
+    scaled_w = round(foreground.size[0] * scale_fg)
+    scaled_h = round(foreground.size[1] * scale_fg)
+    foreground = foreground.resize((scaled_w, scaled_h))
 
-    # Create a binary mask from the foreground image (assumes white pixels as foreground)
-    foreground_mask = cv2.cvtColor(foreground, cv2.COLOR_BGR2GRAY)
-    _, foreground_mask = cv2.threshold(foreground_mask, 1, 255, cv2.THRESH_BINARY)
+    background.paste(foreground, (offset_x, offset_y), foreground)
 
-    # Invert the mask (background pixels will be white)
-    background_mask = cv2.bitwise_not(foreground_mask)
-
-    roi = background[offset_y : offset_y + scaled_h, offset_x : offset_x + scaled_w]
-
-    # Apply the masks to the foreground and background images
-    roi = cv2.bitwise_and(roi, roi, mask=background_mask)
-
-    # Combine the foreground and background images
-    overlay_added = cv2.add(foreground, roi)
-
-    background[
-        offset_y : offset_y + scaled_h, offset_x : offset_x + scaled_w
-    ] = overlay_added
-
-    # Encode the resulting image to JPEG format
-    _, encoded_image = cv2.imencode(".jpg", background)
-
-    # Create a file-like object from the encoded image data
-    image_stream = io.BytesIO(encoded_image.tobytes())
+    image_stream = io.BytesIO()
+    background.save(image_stream, "JPEG")
     image_stream.seek(0)
 
-    # Return the edited image as a file in the response
+    return StreamingResponse(content=image_stream, media_type="image/jpeg")
+
+
+@router.post("/lowres")
+async def add_background_lowres(
+    foreground_image: UploadFile,
+    background_image: UploadFile,
+    scale_fg: Annotated[float, Form()],
+    offset_x: Annotated[int, Form()],
+    offset_y: Annotated[int, Form()],
+):
+    foreground = Image.open(foreground_image.file)
+    background = Image.open(background_image.file)
+
+    scaled_w = round(foreground.size[0] * scale_fg)
+    scaled_h = round(foreground.size[1] * scale_fg)
+    foreground = foreground.resize((scaled_w, scaled_h))
+
+    background.paste(foreground, (offset_x, offset_y), foreground)
+
+    max_dimm = max(background.size)
+    if max_dimm > 512:
+        scale = 512 / max_dimm
+        background = background.resize(
+            (round(background.size[0] * scale), round(background.size[1] * scale))
+        )
+
+    image_stream = io.BytesIO()
+    background.save(image_stream, "JPEG")
+    image_stream.seek(0)
+
     return StreamingResponse(content=image_stream, media_type="image/jpeg")
