@@ -1,9 +1,10 @@
 import io
+
 import cv2
+import numpy as np
 from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
-import numpy as np
 
 router = APIRouter()
 

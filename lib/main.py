@@ -1,7 +1,9 @@
 import json
+
 from fastapi import FastAPI, Request
-from lib.routes import payments, remove_background, add_background
 from fastapi.middleware.cors import CORSMiddleware
+
+from lib.routes import add_background, payments, remove_background
 
 app = FastAPI()
 
